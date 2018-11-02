@@ -11,4 +11,14 @@
         <field name="args" eval="'()'"/>
     </record>
 
+    <record model="ir.cron" id="account_analytic_cron_for_mail">
+        <field name="name">Send Notification for Contract Renewal</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="numbercall">-1</field>
+        <field name="model" eval="'account.analytic.account'"/>
+        <field name="function" eval="'cron_recurring_mail_notification'"/>
+        <field name="args" eval="'()'"/>
+    </record>
+
 </odoo>

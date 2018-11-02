@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 from odoo.tools.translate import _
-
+from datetime import datetime,timedelta
 
 class AccountAnalyticAccount(models.Model):
     _name = 'account.analytic.account'
@@ -54,6 +54,16 @@ class AccountAnalyticAccount(models.Model):
     create_invoice_visibility = fields.Boolean(
         compute='_compute_create_invoice_visibility',
     )
+    amount = fields.Float('Amount',compute='get_total_amount',store=True)
+
+    @api.depends('recurring_invoice_line_ids')
+    def get_total_amount(self):
+        for rec in self:
+            amount = 0.0
+            if rec.recurring_invoice_line_ids:
+                for res in rec.recurring_invoice_line_ids:
+                    amount+=res.specific_price*res.quantity
+                rec.amount = amount
 
     @api.depends('recurring_next_date', 'date_end')
     def _compute_create_invoice_visibility(self):
@@ -331,3 +341,20 @@ class AccountAnalyticAccount(models.Model):
             'target': 'new',
             'context': ctx,
         }
+
+    @api.model
+    def cron_recurring_mail_notification(self):
+        current_date = datetime.today()
+        end_date = (current_date + timedelta(days=2)).strftime('%Y-%m-%d')
+        rec_ids = self.env['account.analytic.account'].sudo().search([('date_end','=',end_date)])
+        if rec_ids:
+            for rec in rec_ids:
+                amount=0.0
+                for res in rec.recurring_invoice_line_ids:
+                    amount+=res.specific_price*res.quantity
+                rec.sudo().write({'amount':amount})
+                template=self.env['mail.template'].sudo().search([('name', '=', 'Contract Renewal Notification')], limit = 1)
+                if template:
+                    template.sudo().send_mail(rec.id)
+
+        return True
